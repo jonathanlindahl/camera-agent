@@ -183,4 +183,21 @@ mod tests {
             assert_eq!(action, expected_action);
         }
     }
+
+    #[test]
+    fn full_recording_sequence() {
+        let mut agent = CameraAgent::new();
+
+        // Idle -> Monitoring
+        agent.step(obs(40, false, 0, 10, true));
+        assert_eq!(agent.current_state(), SystemState::Monitoring);
+
+        // Monitoring -> Recording
+        agent.step(obs(60, true, 0, 10, true));
+        assert_eq!(agent.current_state(), SystemState::Recording);
+
+        // Recording -> Alerting
+        agent.step(obs(60, true, 90, 10, true));
+        assert_eq!(agent.current_state(), SystemState::Alerting);
+    }
 }
