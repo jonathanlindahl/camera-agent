@@ -83,8 +83,9 @@ mod tests {
             detector_healthy: true,
         };
 
-        agent.step(obs);
+        let (next_state, action) = transition(SystemState::Idle, obs);
 
-        assert_eq!(agent.current_state(), SystemState::Monitoring);
+        assert_eq!(next_state, SystemState::Monitoring);
+        assert_eq!(action, Action::None);
     }
 }
