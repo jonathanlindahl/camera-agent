@@ -69,7 +69,7 @@ fn transition(state: SystemState, obs: Observation) -> (SystemState, Action) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Observation;
+    use crate::types::{Action, Observation, SystemState};
 
     #[test]
     fn idle_to_monitoring_on_motion() {
@@ -87,5 +87,21 @@ mod tests {
 
         assert_eq!(next_state, SystemState::Monitoring);
         assert_eq!(action, Action::None);
+    }
+
+    #[test]
+    fn monitoring_to_recording() {
+        let obs = Observation {
+            motion_level: 60,
+            object_detected: true,
+            confidence: 90,
+            cpu_load: 10,
+            detector_healthy: true,
+        };
+
+        let (next_state, action) = transition(SystemState::Monitoring, obs);
+
+        assert_eq!(next_state, SystemState::Recording);
+        assert_eq!(action, Action::SendAlert);
     }
 }
