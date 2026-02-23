@@ -200,4 +200,22 @@ mod tests {
         agent.step(obs(60, true, 90, 10, true));
         assert_eq!(agent.current_state(), SystemState::Alerting);
     }
+
+    #[test]
+    fn degraded_multiple_cycle_recovery() {
+        let mut agent = CameraAgent::new();
+
+        // force degraded
+        agent.step(obs(0, false, 0, 90, true));
+        assert_eq!(agent.current_state(), SystemState::Degraded);
+
+        agent.step(obs(0, false, 0, 50, true));
+        assert_eq!(agent.current_state(), SystemState::Degraded);
+        agent.step(obs(0, false, 0, 50, true));
+        assert_eq!(agent.current_state(), SystemState::Degraded);
+
+        // recover on third stable cycle
+        agent.step(obs(0, false, 0, 50, true));
+        assert_eq!(agent.current_state(), SystemState::Monitoring);
+    }
 }
