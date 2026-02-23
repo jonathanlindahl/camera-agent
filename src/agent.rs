@@ -102,4 +102,52 @@ mod tests {
         assert_eq!(next_state, SystemState::Recording);
         assert_eq!(action, Action::StartRecording);
     }
+
+    #[test]
+    fn recording_to_alerting() {
+        let obs = Observation {
+            motion_level: 60,
+            object_detected: true,
+            confidence: 90,
+            cpu_load: 10,
+            detector_healthy: true,
+        };
+
+        let (next_state, action) = transition(SystemState::Recording, obs);
+
+        assert_eq!(next_state, SystemState::Alerting);
+        assert_eq!(action, Action::SendAlert);
+    }
+
+    #[test]
+    fn degraded_on_high_cpu() {
+        let obs = Observation {
+            motion_level: 0,
+            object_detected: false,
+            confidence: 0,
+            cpu_load: 90,
+            detector_healthy: true,
+        };
+
+        let (next_state, action) = transition(SystemState::Monitoring, obs);
+
+        assert_eq!(next_state, SystemState::Degraded);
+        assert_eq!(action, Action::EnterDegradedMode);
+    }
+
+    #[test]
+    fn degraded_on_detector_failure() {
+        let obs = Observation {
+            motion_level: 0,
+            object_detected: false,
+            confidence: 0,
+            cpu_load: 10,
+            detector_healthy: false,
+        };
+
+        let (next_state, action) = transition(SystemState::Recording, obs);
+
+        assert_eq!(next_state, SystemState::Degraded);
+        assert_eq!(action, Action::EnterDegradedMode);
+    }
 }
