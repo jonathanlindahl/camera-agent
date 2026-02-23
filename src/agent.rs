@@ -35,3 +35,26 @@ impl CameraAgent {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Observation;
+
+    #[test]
+    fn idle_to_monitoring_on_motion() {
+        let mut agent = CameraAgent::new();
+
+        let obs = Observation {
+            motion_level: 50,
+            object_detected: false,
+            confidence: 0,
+            cpu_load: 10,
+            detector_healthy: true,
+        };
+
+        agent.step(obs);
+
+        assert_eq!(agent.current_state(), SystemState::Monitoring);
+    }
+}
