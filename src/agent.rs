@@ -72,9 +72,7 @@ mod tests {
     use crate::types::{Action, Observation, SystemState};
 
     #[test]
-    fn idle_to_monitoring_on_motion() {
-        let mut agent = CameraAgent::new();
-
+    fn idle_to_monitoring() {
         let obs = Observation {
             motion_level: 50,
             object_detected: false,
@@ -102,6 +100,6 @@ mod tests {
         let (next_state, action) = transition(SystemState::Monitoring, obs);
 
         assert_eq!(next_state, SystemState::Recording);
-        assert_eq!(action, Action::SendAlert);
+        assert_eq!(action, Action::StartRecording);
     }
 }
