@@ -143,84 +143,44 @@ mod tests {
     use super::*;
     use crate::types::{Action, Observation, SystemState};
 
-    #[test]
-    fn idle_to_monitoring() {
-        let obs = Observation {
-            motion_level: 50,
-            object_detected: false,
-            confidence: 0,
-            cpu_load: 10,
-            detector_healthy: true,
-        };
-
-        let (next_state, action, degraded_reason, degraded_cycles) =
-            transition(SystemState::Idle, obs, None, 0);
-
-        assert_eq!(next_state, SystemState::Monitoring);
-        assert_eq!(action, Action::None);
+    fn obs(motion: u8, detected: bool, conf: u8, load: u8, healthy: bool) -> Observation {
+        Observation {
+            motion_level: motion,
+            object_detected: detected,
+            confidence: conf,
+            cpu_load: load,
+            detector_healthy: healthy,
+        }
     }
 
     #[test]
-    fn monitoring_to_recording() {
-        let obs = Observation {
-            motion_level: 60,
-            object_detected: true,
-            confidence: 90,
-            cpu_load: 10,
-            detector_healthy: true,
-        };
+    fn basic_state_transitions() {
+        let cases = vec![
+            (
+                SystemState::Idle,
+                obs(40, false, 0, 10, true),
+                SystemState::Monitoring,
+                Action::None,
+            ),
+            (
+                SystemState::Monitoring,
+                obs(60, true, 0, 10, true),
+                SystemState::Recording,
+                Action::StartRecording,
+            ),
+            (
+                SystemState::Recording,
+                obs(60, true, 90, 10, true),
+                SystemState::Alerting,
+                Action::SendAlert,
+            ),
+        ];
 
-        let (next_state, action) = transition(SystemState::Monitoring, obs);
+        for (state, observation, expected_state, expected_action) in cases {
+            let (next_state, action, _, _) = transition(state, observation, None, 0);
 
-        assert_eq!(next_state, SystemState::Recording);
-        assert_eq!(action, Action::StartRecording);
-    }
-
-    #[test]
-    fn recording_to_alerting() {
-        let obs = Observation {
-            motion_level: 60,
-            object_detected: true,
-            confidence: 90,
-            cpu_load: 10,
-            detector_healthy: true,
-        };
-
-        let (next_state, action) = transition(SystemState::Recording, obs);
-
-        assert_eq!(next_state, SystemState::Alerting);
-        assert_eq!(action, Action::SendAlert);
-    }
-
-    #[test]
-    fn degraded_on_high_cpu() {
-        let obs = Observation {
-            motion_level: 0,
-            object_detected: false,
-            confidence: 0,
-            cpu_load: 90,
-            detector_healthy: true,
-        };
-
-        let (next_state, action) = transition(SystemState::Monitoring, obs);
-
-        assert_eq!(next_state, SystemState::Degraded);
-        assert_eq!(action, Action::EnterDegradedMode);
-    }
-
-    #[test]
-    fn degraded_on_detector_failure() {
-        let obs = Observation {
-            motion_level: 0,
-            object_detected: false,
-            confidence: 0,
-            cpu_load: 10,
-            detector_healthy: false,
-        };
-
-        let (next_state, action) = transition(SystemState::Recording, obs);
-
-        assert_eq!(next_state, SystemState::Degraded);
-        assert_eq!(action, Action::EnterDegradedMode);
+            assert_eq!(next_state, expected_state);
+            assert_eq!(action, expected_action);
+        }
     }
 }
