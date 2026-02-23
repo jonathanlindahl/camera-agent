@@ -18,20 +18,50 @@ impl CameraAgent {
     }
 
     pub fn step(&mut self, obs: Observation) -> Action {
-        // Global degraded rule
-        if obs.cpu_load > 85 || !obs.detector_healthy {
-            self.state = SystemState::Degraded;
-            return Action::EnterDegradedMode;
-        }
+        let (next_state, action) = transition(self.state, obs);
+        self.state = next_state;
+        action
+    }
+}
 
-        match self.state {
-            SystemState::Idle => {
-                if obs.motion_level > 30 {
-                    self.state = SystemState::Monitoring;
-                }
-                Action::None
+fn transition(state: SystemState, obs: Observation) -> (SystemState, Action) {
+    if obs.cpu_load > 85 || !obs.detector_healthy {
+        return (SystemState::Degraded, Action::EnterDegradedMode);
+    }
+
+    match state {
+        SystemState::Idle => {
+            if obs.motion_level > 30 {
+                (SystemState::Monitoring, Action::None)
+            } else {
+                (SystemState::Idle, Action::None)
             }
-            _ => Action::None,
+        }
+        SystemState::Monitoring => {
+            if obs.motion_level > 50 && obs.object_detected {
+                (SystemState::Recording, Action::StartRecording)
+            } else if obs.motion_level <= 30 {
+                (SystemState::Idle, Action::None)
+            } else {
+                (SystemState::Monitoring, Action::None)
+            }
+        }
+        SystemState::Recording => {
+            if obs.confidence > 80 {
+                (SystemState::Alerting, Action::SendAlert)
+            } else if obs.motion_level <= 30 {
+                (SystemState::Monitoring, Action::StopRecording)
+            } else {
+                (SystemState::Recording, Action::None)
+            }
+        }
+        SystemState::Alerting => {
+            // Always return to Recording after one cycle
+            (SystemState::Recording, Action::None)
+        }
+        SystemState::Degraded => {
+            // Recovery handled later
+            (SystemState::Degraded, Action::None)
         }
     }
 }
@@ -39,12 +69,10 @@ impl CameraAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Observation;
+    use crate::types::{Action, Observation, SystemState};
 
     #[test]
-    fn idle_to_monitoring_on_motion() {
-        let mut agent = CameraAgent::new();
-
+    fn idle_to_monitoring() {
         let obs = Observation {
             motion_level: 50,
             object_detected: false,
@@ -53,8 +81,73 @@ mod tests {
             detector_healthy: true,
         };
 
-        agent.step(obs);
+        let (next_state, action) = transition(SystemState::Idle, obs);
 
-        assert_eq!(agent.current_state(), SystemState::Monitoring);
+        assert_eq!(next_state, SystemState::Monitoring);
+        assert_eq!(action, Action::None);
+    }
+
+    #[test]
+    fn monitoring_to_recording() {
+        let obs = Observation {
+            motion_level: 60,
+            object_detected: true,
+            confidence: 90,
+            cpu_load: 10,
+            detector_healthy: true,
+        };
+
+        let (next_state, action) = transition(SystemState::Monitoring, obs);
+
+        assert_eq!(next_state, SystemState::Recording);
+        assert_eq!(action, Action::StartRecording);
+    }
+
+    #[test]
+    fn recording_to_alerting() {
+        let obs = Observation {
+            motion_level: 60,
+            object_detected: true,
+            confidence: 90,
+            cpu_load: 10,
+            detector_healthy: true,
+        };
+
+        let (next_state, action) = transition(SystemState::Recording, obs);
+
+        assert_eq!(next_state, SystemState::Alerting);
+        assert_eq!(action, Action::SendAlert);
+    }
+
+    #[test]
+    fn degraded_on_high_cpu() {
+        let obs = Observation {
+            motion_level: 0,
+            object_detected: false,
+            confidence: 0,
+            cpu_load: 90,
+            detector_healthy: true,
+        };
+
+        let (next_state, action) = transition(SystemState::Monitoring, obs);
+
+        assert_eq!(next_state, SystemState::Degraded);
+        assert_eq!(action, Action::EnterDegradedMode);
+    }
+
+    #[test]
+    fn degraded_on_detector_failure() {
+        let obs = Observation {
+            motion_level: 0,
+            object_detected: false,
+            confidence: 0,
+            cpu_load: 10,
+            detector_healthy: false,
+        };
+
+        let (next_state, action) = transition(SystemState::Recording, obs);
+
+        assert_eq!(next_state, SystemState::Degraded);
+        assert_eq!(action, Action::EnterDegradedMode);
     }
 }
