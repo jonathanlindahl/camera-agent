@@ -59,3 +59,26 @@ impl Scheduler {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Observation;
+
+    #[test]
+    fn tick_updates_metrics() {
+        let agent = CameraAgent::new();
+        let mut scheduler = Scheduler::new(agent, 30);
+
+        scheduler.tick(Observation {
+            motion_level: 0,
+            object_detected: false,
+            confidence: 0,
+            cpu_load: 0,
+            detector_healthy: true,
+        });
+
+        assert_eq!(scheduler.total_frames, 1);
+        assert_eq!(scheduler.deadline_misses, 0);
+    }
+}
