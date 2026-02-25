@@ -40,4 +40,22 @@ impl Scheduler {
 
         self.total_frames += 1;
     }
+
+    pub fn run<F>(&mut self, mut observation_source: F)
+    where
+        F: FnMut() -> Observation,
+    {
+        loop {
+            let cycle_start = Instant::now();
+
+            let obs = observation_source();
+            self.tick(obs);
+
+            let elapsed = cycle_start.elapsed();
+
+            if elapsed < self.frame_budget {
+                std::thread::sleep(self.frame_budget - elapsed);
+            }
+        }
+    }
 }
