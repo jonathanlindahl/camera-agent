@@ -47,7 +47,7 @@ fn transition(
     const MOTION_THRESHOLD: u8 = 30;
     const RECORD_THRESHOLD: u8 = 50;
     const ALERT_CONFIDENCE: u8 = 80;
-    const RECOVERY_CYCLES: u32 = 3; // number of stables cycles to recover
+    const RECOVERY_CYCLES: u32 = 3; // number of stable cycles to recover
 
     // global degraded override
     if obs.cpu_load > CPU_DEGRADE {
